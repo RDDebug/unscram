@@ -1,7 +1,5 @@
-# This is a sample Python script.
+import random
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
 
 def print_hi(name):
@@ -11,6 +9,14 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    array_size = 40
+    max_wait = 10
+    waits = [0] * array_size
+    wait_sum = 0
+    for i, v in enumerate(waits):
+        waits[i] = random.choice([100, 300, 500, 1000])
+    ratio = (max_wait * 1000) / sum(waits)
+    adj_waits = [int(num * ratio) for num in waits]
+    x=1
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
