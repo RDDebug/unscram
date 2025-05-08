@@ -1,5 +1,6 @@
-from PIL import Image
+from PIL import Image, ImageTk
 import numpy as np
+import tkinter as tk
 
 def process_image(image_path):
     """
@@ -36,26 +37,61 @@ def process_image(image_path):
         modified_img = Image.fromarray(modified_array, mode=img.mode)
         print("NumPy array converted back to Pillow image.")
 
-        # Display the resulting image
-        # In a script environment without a GUI, 'showing' an image might mean saving it
-        # or just returning the object for further processing.
-        # For now, let's try to show it, though it might not work in all environments.
-        # If img.show() doesn't work or is not appropriate, this can be changed to saving the image.
-        print("Attempting to display/save the modified image...")
+        # Display the resulting image using Tkinter
+        print("Attempting to display the modified image using Tkinter...")
         
-        # Let's save it instead of displaying, as display might not work
-        output_path = "modified_" + image_path.split('/')[-1]
-        modified_img.save(output_path)
-        print(f"Modified image saved to '{output_path}'")
-        
-        return modified_img, output_path
+        # Comment out or remove the saving part if Tkinter is the primary display
+        # output_path = "modified_" + image_path.split('/')[-1]
+        # modified_img.save(output_path)
+        # print(f"Modified image saved to '{output_path}'")
+
+        try:
+            root = tk.Tk()
+            root.title(f"Processed Image: {image_path}")
+            
+            # Convert the Pillow Image to a PhotoImage
+            tk_image = ImageTk.PhotoImage(modified_img)
+            
+            # Create a Label to display the image
+            image_label = tk.Label(root, image=tk_image)
+            image_label.pack()
+            
+            # Keep a reference to the image to prevent garbage collection
+            image_label.image = tk_image 
+            
+            print("Starting Tkinter main loop...")
+            root.mainloop()
+            print("Tkinter main loop finished.")
+            
+            # Mainloop is blocking, so this return happens after window is closed.
+            # The concept of 'output_path' is less relevant if we are displaying directly.
+            return modified_img, None 
+
+        except tk.TclError as e:
+            print(f"Tkinter error: {e}. This might happen if there's no display environment (e.g., running in a headless server).")
+            print("Falling back to saving the image.")
+            output_path = "modified_" + image_path.split('/')[-1]
+            modified_img.save(output_path)
+            print(f"Modified image saved to '{output_path}'")
+            return modified_img, output_path
+        except Exception as e_tk:
+            print(f"An unexpected error occurred during Tkinter display: {e_tk}")
+            print("Falling back to saving the image.")
+            output_path = "modified_" + image_path.split('/')[-1]
+            modified_img.save(output_path)
+            print(f"Modified image saved to '{output_path}'")
+            return modified_img, output_path
 
     except FileNotFoundError:
         print(f"Error: The file '{image_path}' was not found.")
         return None, None
-    except ImportError:
-        print("Error: Pillow (PIL) or NumPy library is not installed.")
-        print("Please ensure Pillow and NumPy are installed to process images.")
+    except ImportError as e_imp:
+        # Check if it's Tkinter specific import error if possible
+        if 'ImageTk' in str(e_imp) or 'tkinter' in str(e_imp):
+            print(f"Error: Tkinter or ImageTk is not available. Cannot display image. {e_imp}")
+        else:
+            print(f"Error: Pillow (PIL) or NumPy library is not installed. {e_imp}")
+        print("Please ensure Pillow, NumPy, and Tkinter are installed to process and display images.")
         return None, None
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -90,14 +126,19 @@ if __name__ == '__main__':
 
         # Test the process_image function
         print(f"\nProcessing image: {dummy_image_path}")
-        processed_image, save_path = process_image(dummy_image_path)
+        # The function will now block until the Tkinter window is closed.
+        # save_path will be None if Tkinter display succeeds.
+        processed_image, display_info = process_image(dummy_image_path)
         if processed_image:
-            print(f"Image processing apparently successful. Modified image saved to {save_path}")
-            # In a real scenario, you might want to verify the content of 'save_path'
+            if display_info is None: # Assuming None means Tkinter showed and closed
+                print(f"Image processing and Tkinter display initiated. Window needs to be closed manually to continue.")
+            else: # Assuming display_info contains output_path due to fallback
+                print(f"Image processing successful. Tkinter display failed or was skipped, image saved to: {display_info}")
         else:
             print("Image processing failed.")
 
-    except ImportError:
-        print("Cannot run main test block: Pillow or NumPy not available to create/process dummy image.")
+    except ImportError as e:
+        # Catching specific import errors if needed for the main block
+        print(f"Cannot run main test block due to Import Error: {e}. Ensure Pillow, NumPy, and Tkinter are available.")
     except Exception as e:
         print(f"Error in main test block: {e}")
