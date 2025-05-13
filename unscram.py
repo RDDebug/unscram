@@ -25,8 +25,7 @@ def kill_program(event):
 
 
 if __name__ == '__main__':
-    satellite_downloader_gui.set_root(root)
-    satellite_downloader_gui.gui_init()
+    satellite_downloader_gui.gui_init(root)
 
     root.bind("<Control-KeyPress>", kill_program)
 

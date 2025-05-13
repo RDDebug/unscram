@@ -13,6 +13,8 @@ from PIL import Image, ImageTk
 root = None
 label = None
 end_label = None
+time_label = None
+start_time = 0
 button = None
 tx_button = None
 back_button = None
@@ -34,37 +36,75 @@ corrections = [16, 1994, 3]
 corrections_truth = [8, 1993, 4]
 
 
-def set_root(new_root):
-    global root
+def gui_init(new_root):
+    global root, button, image_label
+
     root = new_root
-
-
-def gui_init():
-    global end_label, tx_button, label, button, back_button, image_label
-    # --- Initialize GUI elements ---
-    # Create initial label widget
-    # label = tk.Label(root, text="Download Satellite database", font=font.Font(size=60))
-    # label.pack(pady=10)
-    # end_label = tk.Label(root, text="Download Satellite database", font=font.Font(size=60))
-    # label.pack(pady=10)
-
-    # Create initial button widget
-    tx_button = tk.Button(root, text="Transmit Location to Range Control", command=tx_location, font=font.Font(size=30))  # Assign command
-    tx_button.pack(pady=5)
-    button = tk.Button(root, text="Download Satellite database", command=download_database, font=font.Font(size=30))  # Assign command
-    button.pack(pady=5)
-    back_button = tk.Button(root, text="Back", command=return_to_start)
-
-    image_label = tk.Label(root)
-
-    image_processor.modify_array = np.zeros((1200, 1920, 4), dtype=np.uint8)
-    image_processor.modify_array[:, :, 3] = 255  # Alpha channel (fully opaque)
+    button = tk.Button(text="Begin", command=start_session, font=font.Font(size=60))
+    button.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
                            # Note: We are not calling root.mainloop() here as per the instructions.
     # The mainloop will be started in the main application script.
     root.attributes('-fullscreen', True)
     # Optional: Set a default window size (can be adjusted later)
     # root.geometry("300x150")
+
+    image_label = tk.Label(root)
+
+    image_processor.modify_array = np.zeros((1200, 1920, 4), dtype=np.uint8)
+    image_processor.modify_array[:, :, 3] = 255  # Alpha channel (fully opaque)
+
+    # global end_label, tx_button, label, button, back_button, image_label
+    # # --- Initialize GUI elements ---
+    # # Create initial label widget
+    # # label = tk.Label(root, text="Download Satellite database", font=font.Font(size=60))
+    # # label.pack(pady=10)
+    # # end_label = tk.Label(root, text="Download Satellite database", font=font.Font(size=60))
+    # # label.pack(pady=10)
+    #
+    # # Create initial button widget
+    # tx_button = tk.Button(root, text="Transmit Location to Range Control", command=tx_location, font=font.Font(size=30))  # Assign command
+    # tx_button.pack(pady=5)
+    # button = tk.Button(root, text="Download Satellite database", command=download_database, font=font.Font(size=30))  # Assign command
+    # button.pack(pady=5)
+    # back_button = tk.Button(root, text="Back", command=return_to_start)
+
+
+def get_time():
+    global start_time
+    end_time = time.time()
+    difference = end_time - start_time
+
+    minutes, seconds = divmod(int(difference), 60)
+    hours, minutes = divmod(minutes, 60)
+    return "{:02d}:{:02d}:{:02d}".format(hours, minutes, seconds)
+
+
+def update_time():
+    global time_label
+    time_label.config(text=get_time())
+    root.after(1000, update_time)
+
+
+def start_session():
+    global start_time, time_label, end_label, tx_button, label, button, back_button, image_label
+    start_time = time.time()
+
+    time_label = tk.Label(root, text="", font=font.Font(size=25))
+    time_label.place(anchor="se", relx=0.98, rely=0.98)
+    update_time()
+
+    tx_button = tk.Button(root, text="Transmit Location to Range Control", command=tx_location, font=font.Font(size=40))  # Assign command
+    tx_button.place(relx=0.5, rely=0.4, anchor="s")
+    button.config(text="Download Satellite database", command=download_database, font=font.Font(size=40))  # Assign command
+    button.place(relx=0.5, rely=0.6, anchor="n")
+    # button.place_forget()
+    # button.pack(pady=5)
+    back_button = tk.Button(root, text="Back", command=return_to_start)
+
+
+# def start_main_page
+#     binary_label = tk.Label(root, text=binary_string, width=1000, wraplength=1000, anchor="w", justify="left"
 
 
 def return_to_start():
@@ -79,8 +119,8 @@ def return_to_start():
         binary_label.pack_forget()
     if attempt_label:
         attempt_label.pack_forget()
-    tx_button.pack(pady=5)
-    button.pack(pady=5)
+    tx_button.place(relx=0.5, rely=0.4, anchor="s")
+    button.place(relx=0.5, rely=0.6, anchor="n")
     downloading = False
     attempt = 0
 
@@ -165,11 +205,11 @@ def show_success_message():
 def download_database():
     global label, button, root, back_button, complete
     if label:
-        label.pack_forget()
+        label.place_forget()
     if button:
-        button.pack_forget()
+        button.place_forget()
     if tx_button:
-        tx_button.pack_forget()
+        tx_button.place_forget()
 
     back_button.place(x=50, y=20)
     if complete:
