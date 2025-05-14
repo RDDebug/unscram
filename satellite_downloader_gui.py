@@ -10,6 +10,8 @@ import image_processor
 from PIL import Image, ImageTk
 
 # --- Global variables for widgets ---
+import image_utils
+
 root = None
 label = None
 end_label = None
@@ -34,10 +36,16 @@ processing = False
 image_thread = None
 corrections = [16, 1994, 3]
 corrections_truth = [8, 1993, 4]
+correction_labels = [None, None, None]
+correction_inputs = [None, None, None]
+correction_vars = [None, None, None]
+unmatched_ct = 0
+image_steps = 20
+image_gen = None
 
 
 def gui_init(new_root):
-    global root, button, image_label
+    global root, button, image_label, correction_vars, correction_labels, correction_inputs
 
     root = new_root
     button = tk.Button(text="Begin", command=start_session, font=font.Font(size=60))
@@ -53,6 +61,14 @@ def gui_init(new_root):
 
     image_processor.modify_array = np.zeros((1200, 1920, 4), dtype=np.uint8)
     image_processor.modify_array[:, :, 3] = 255  # Alpha channel (fully opaque)
+
+    correction_vars = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
+    correction_labels = [tk.Label(root, text=s, width=10, justify="center") for s in ["Tropo", "Iono", "Clock"]]
+    vcmd = root.register(valid_input)
+    correction_inputs = [tk.Entry(root, textvariable=correction_vars[i], validate="key", validatecommand=(vcmd, "%P"), width=10) for i in range(0, 3)]
+
+    for inp in correction_inputs:
+        inp.bind("<FocusOut>", on_focus_out)
 
     # global end_label, tx_button, label, button, back_button, image_label
     # # --- Initialize GUI elements ---
@@ -218,33 +234,68 @@ def download_database():
         first_download()
 
 
+def valid_input(p):
+    return p.isdigit() or p == ""
+
+
+def on_focus_out(event):
+    update_image()
+
+
 def prepare_image():
-    global attempt_label, binary_label, image_label, complete
+    global attempt_label, binary_label, image_label, complete, correction_labels, correction_inputs, correction_vars
     attempt_label.pack_forget()
     binary_label.pack_forget()
     image_label.pack()
     image_label.lower()
-    root.after(1000, build_image)
+    for i in range(0, 3):
+        correction_labels[i].place(anchor="s", relx=0.05*(i+0.5), rely=0.1)
+        correction_inputs[i].place(anchor="n", relx=0.05*(i+0.5), rely=0.1)
+    complete = True
+    root.after(1000, update_image)
 
 
 def update_image():
-    global processing, image_thread, image_label, complete
-    banlk_img = Image.fromarray(image_processor.modify_array, 'RGBA')
-    tk_image = ImageTk.PhotoImage(banlk_img)
-    image_label.config(image=tk_image)
-    image_label.image = tk_image
-    if image_thread is None or image_thread.is_alive():
-        root.after(10, update_image)
-    else:
-        image_thread.join()
-        image_thread = None
-        complete = True
-        processing = False
-        root.after(500, check_corrections)
+    global corrections, image_gen, image_steps, unmatched_ct, image_label
+    for var in correction_vars:
+        if var.get() == "":
+            var.set("0")
+    corrections = [int(correction.get()) for correction in correction_vars]
+    if image_gen is None:
+        unmatched_ct = 0
+        for i in range(0, 3):
+            unmatched_ct += 0 if corrections[i] == corrections_truth[i] else 1
+        image_gen = image_utils.gen_animation(corrections, image_steps, unmatched_ct)
+    try:
+        image = next(image_gen)
+        tkimage = ImageTk.PhotoImage(image)
+        image_label.config(image=tkimage)
+        image_label.image = tkimage
+        root.after(50, update_image)
+    except StopIteration:
+        image_gen = None
+        # check_corrections()
+
+
+# def update_image():
+#     global processing, image_thread, image_label, complete
+#     banlk_img = Image.fromarray(image_processor.modify_array, 'RGBA')
+#     tk_image = ImageTk.PhotoImage(banlk_img)
+#     image_label.config(image=tk_image)
+#     image_label.image = tk_image
+#     if image_thread is None or image_thread.is_alive():
+#         root.after(10, update_image)
+#     else:
+#         image_thread.join()
+#         image_thread = None
+#         complete = True
+#         processing = False
+#         root.after(500, check_corrections)
 
 
 def check_corrections():
-    global corrections, corrections_truth
+    global corrections, corrections_truth, correction_inputs
+    corrections = [int(correction.get()) for correction in correction_inputs]
     print(corrections)
     if corrections == corrections_truth:
         messagebox.showinfo("Data Demod Success", "Data Demodulated successfully!")
@@ -260,94 +311,7 @@ def check_corrections():
                 corrections[i] = int(input1)
             except Exception as e:
                 corrections[i] = 0
-        root.after(0, build_image)
-
-
-
-def get_corrections():
-
-    return input1, input2, input3
-
-
-def build_image_old():
-    global complete, processing
-    dummy_image_path = "scrambled_dummy_test_image_no_a.png"
-    processing = True
-
-    image_processor.modify_array = np.zeros((1200, 1920, 4), dtype=np.uint8)
-    # img_data[:, :, 0] = 0  # Red channel
-    # img_data[:, :, 1] = 0  # Green channel
-    # img_data[:, :, 2] = 0  # Blue channel
-    image_processor.modify_array[:, :, 3] = 255  # Alpha channel (fully opaque)
-    update_image()
-    banlk_img = Image.fromarray(image_processor.modify_array, 'RGBA')
-    try:
-        # # Convert the Pillow Image to a PhotoImage
-        # tk_image = ImageTk.PhotoImage(banlk_img)
-        # # Create a Label to display the image
-        # image_label.config(image=tk_image)
-        # image_label.image = tk_image
-        # # Keep a reference to the image to prevent garbage collection
-        # image_label.lower()
-        # print("sleeping: 1")
-        # time.sleep(1)
-
-        image_thread = threading.Thread(target=image_processor.unscramble_image, args=(0, 0, 0, dummy_image_path))
-        image_thread.start()
-
-        while image_thread.is_alive():
-
-            print("sleeping: 2")
-            update_image()
-            time.sleep(1)
-
-        image_thread.join()
-        # gen = image_processor.unscramble_image(0, 0, 0, dummy_image_path)
-        #
-        # while processing:
-        #     modified_img, processing = next(gen)
-        #     print("beep")
-        #     tk_image = ImageTk.PhotoImage(modified_img)
-        #     image_label.config(image=tk_image)
-        #     image_label.image = tk_image
-
-        # for modified_img, processing in gen:
-        #     # modified_img, processing = image_processor.unscramble_image(0, 0, 0, dummy_image_path)
-        #     print("beep")
-        #     image_label.config(image=modified_img)
-
-        complete = True
-        processing = False
-
-        # values = get_corrections()
-        # if values[0] is not None and values[1] is not None and values[2] is not None:
-        #     print("Input 1:", values[0])
-        #     print("Input 2:", values[1])
-        #     print("Input 3:", values[2])
-        # else:
-        #     print("User cancelled or did not enter all inputs.")
-
-        # Mainloop is blocking, so this return happens after window is closed.
-        # The concept of 'output_path' is less relevant if we are displaying directly.
-    except tk.TclError as e:
-        print(
-            f"Tkinter error: {e}. This might happen if there's no display environment (e.g., running in a headless server).")
-        print("Falling back to saving the image.")
-    except Exception as e_tk:
-        print(f"An unexpected error occurred during Tkinter display: {e_tk}")
-        print("Falling back to saving the image.")
-
-
-def build_image():
-    global complete, processing, image_thread
-    dummy_image_path = "scrambled_dummy_test_image_no_a.png"
-    processing = True
-
-    update_image()
-    # banlk_img = Image.fromarray(image_processor.modify_array, 'RGBA')
-
-    image_thread = threading.Thread(target=image_processor.unscramble_image, args=(corrections, dummy_image_path))
-    image_thread.start()
+        # root.after(0, build_image)
 
 
 def load_image():

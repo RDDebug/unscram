@@ -24,6 +24,7 @@ target_pix = 50
 current_pal = 2
 target_pal = 2
 
+
 def pixelate_image(image, pixel_size):
     """Pixelates a Pillow Image object.
 
@@ -41,10 +42,12 @@ def pixelate_image(image, pixel_size):
     new_height = max(1, original_height // pixel_size)
 
     # Resize down
-    downscaled_image = image.resize((new_width, new_height), Image.Resampling.BILINEAR)
+    # downscaled_image = image.resize((new_width, new_height), Image.Resampling.BILINEAR)
+    downscaled_image = image.resize((new_width, new_height), Image.Resampling.HAMMING)
 
     # Resize up
-    pixelated_image = downscaled_image.resize((original_width, original_height), Image.Resampling.NEAREST)
+    # pixelated_image = downscaled_image.resize((original_width, original_height), Image.Resampling.NEAREST)
+    pixelated_image = downscaled_image.resize((original_width, original_height), Image.Resampling.BILINEAR)
 
     return pixelated_image
 
@@ -102,6 +105,21 @@ def pixelate_and_dither_image(input_path, output_path, pixel_size, palette_size=
         print(f"An unexpected error occurred while saving the image: {e}")
 
 
+def gen_animation(sol, steps, incorrect):
+    global current_pal, current_pix, target_pal, target_pix
+    gen_values(sol[0], sol[1], sol[2], incorrect)
+    pix_steps = range_steps(current_pix, target_pix, steps)
+    pal_steps = range_steps(current_pal, target_pal, steps)
+    img = Image.open("images/GPS3.png")
+
+    for step in range(0, steps):
+        pixelated = pixelate_image(img, pix_steps[step])
+        dithered = dither_image(pixelated, pal_steps[step])
+        current_pix = pix_steps[step]
+        current_pal = pal_steps[step]
+        yield dithered
+
+
 def range_steps(a, b, steps):
     if steps <= 0:
         raise ValueError("Number of steps must be positive")
@@ -110,14 +128,20 @@ def range_steps(a, b, steps):
     return [int(a + i * step_size) for i in range(steps + 1)]
 
 
-def gen_values(a, b, c):
+def gen_values(a, b, c, errors):
     global current_pal, current_pix, target_pal, target_pix
-    if a != 8 or b != 1993 or c != 4:
-        target_pix = random.randint(9, 50)
-        target_pal = random.randint(2, 16)
-    else:
+    if errors == 0:
         target_pix = 1
         target_pal = 16
+    elif errors == 1:
+        target_pix = random.randint(9, 22)
+        target_pal = random.randint(11, 16)
+    elif errors == 2:
+        target_pix = random.randint(22, 36)
+        target_pal = random.randint(6, 11)
+    elif errors == 3:
+        target_pix = random.randint(36, 50)
+        target_pal = random.randint(3, 6)
 
 
 if __name__ == '__main__':
