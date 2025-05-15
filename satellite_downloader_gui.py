@@ -13,13 +13,16 @@ from PIL import Image, ImageTk
 import image_utils
 
 root = None
+image_controls = None
 label = None
 end_label = None
 time_label = None
 start_time = 0
+game_complete = False
 button = None
 tx_button = None
 back_button = None
+validate_button = None
 attempt_label = None
 binary_label = None
 failure_label = None
@@ -45,11 +48,12 @@ image_gen = None
 
 
 def gui_init(new_root):
-    global root, button, image_label, correction_vars, correction_labels, correction_inputs
+    global root, button, image_label, correction_vars, correction_labels, correction_inputs, validate_button, image_controls
 
     root = new_root
-    button = tk.Button(text="Begin", command=start_session, font=font.Font(size=60))
+    button = tk.Button(text="Begin Scenario", command=start_session, font=font.Font(size=100))
     button.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
 
                            # Note: We are not calling root.mainloop() here as per the instructions.
     # The mainloop will be started in the main application script.
@@ -62,13 +66,17 @@ def gui_init(new_root):
     image_processor.modify_array = np.zeros((1200, 1920, 4), dtype=np.uint8)
     image_processor.modify_array[:, :, 3] = 255  # Alpha channel (fully opaque)
 
-    correction_vars = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
-    correction_labels = [tk.Label(root, text=s, width=10, justify="center") for s in ["Tropo", "Iono", "Clock"]]
+    image_controls = tk.Frame(root)
     vcmd = root.register(valid_input)
-    correction_inputs = [tk.Entry(root, textvariable=correction_vars[i], validate="key", validatecommand=(vcmd, "%P"), width=10) for i in range(0, 3)]
+    correction_vars = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
+    correction_labels = [tk.Label(image_controls, text=s, width=10, justify="center") for s in ["Tropo", "Iono", "Clock"]]
+    correction_inputs = [tk.Entry(image_controls, textvariable=correction_vars[i], validate="key", validatecommand=(vcmd, "%P"), width=10) for i in range(0, 3)]
+    validate_button = tk.Button(image_controls, text="Apply Corrections", command=update_image, font=font.Font(size=10), width=30)
+    for i in range(0, 3):
+        correction_labels[i].grid(row=0, column=i)
+        correction_inputs[i].grid(row=1, column=i)
+    validate_button.grid(row=3, column=0, columnspan=3)
 
-    for inp in correction_inputs:
-        inp.bind("<FocusOut>", on_focus_out)
 
     # global end_label, tx_button, label, button, back_button, image_label
     # # --- Initialize GUI elements ---
@@ -93,13 +101,23 @@ def get_time():
 
     minutes, seconds = divmod(int(difference), 60)
     hours, minutes = divmod(minutes, 60)
-    return "{:02d}:{:02d}:{:02d}".format(hours, minutes, seconds)
+
+    color = "black"
+    if difference > 10:
+        color = "red" if int(difference) % 2 else "black"
+        print(difference % 2)
+    if difference > 20:
+        color = "red"
+    return "{:02d}:{:02d}:{:02d}".format(hours, minutes, seconds), color
 
 
 def update_time():
     global time_label
-    time_label.config(text=get_time())
-    root.after(1000, update_time)
+    if not game_complete:
+        t, c = get_time()
+        time_label.config(text=t, fg=c)
+
+        root.after(1000, update_time)
 
 
 def start_session():
@@ -124,7 +142,7 @@ def start_session():
 
 
 def return_to_start():
-    global image_label, label, back_button, binary_label, attempt_label, attempt, downloading
+    global image_label, label, back_button, binary_label, attempt_label, attempt, downloading, image_controls
     if image_label:
         image_label.pack_forget()
     if label:
@@ -135,17 +153,32 @@ def return_to_start():
         binary_label.pack_forget()
     if attempt_label:
         attempt_label.pack_forget()
+    if image_controls:
+        image_controls.place_forget()
     tx_button.place(relx=0.5, rely=0.4, anchor="s")
     button.place(relx=0.5, rely=0.6, anchor="n")
     downloading = False
-    attempt = 0
+    attempt = 1
 
 
 def tx_location():
+    global game_complete, tx_button, button, time_label
     input1 = simpledialog.askstring("Connected to Range Control", "Enter your position")
 
-    if input1 == "abc":
+    if input1 == "15TVG46125312":
+        game_complete = True
+        tx_button.place_forget()
+        button.place_forget()
+        time_label.config(font=font.Font(size=200))
+        time_label.place(anchor="center", relx=0.5, rely=0.5)
         messagebox.showinfo("Success", "Location successfully logged. Live arms test is being diverted from your location.")
+    elif input1 == "WE GIVE UP":
+        game_complete = True
+        tx_button.place_forget()
+        button.place_forget()
+        time_label.config(font=font.Font(size=200))
+        time_label.place(anchor="center", relx=0.5, rely=0.5)
+        # messagebox.showinfo("Success", "Location successfully logged. Live arms test is being diverted from your location.")
     elif input1 is not None:
         messagebox.showwarning("error", "Invalid Location")
     print(input1)
@@ -238,19 +271,13 @@ def valid_input(p):
     return p.isdigit() or p == ""
 
 
-def on_focus_out(event):
-    update_image()
-
-
 def prepare_image():
-    global attempt_label, binary_label, image_label, complete, correction_labels, correction_inputs, correction_vars
+    global attempt_label, binary_label, image_label, complete, image_controls
     attempt_label.pack_forget()
     binary_label.pack_forget()
     image_label.pack()
     image_label.lower()
-    for i in range(0, 3):
-        correction_labels[i].place(anchor="s", relx=0.05*(i+0.5), rely=0.1)
-        correction_inputs[i].place(anchor="n", relx=0.05*(i+0.5), rely=0.1)
+    image_controls.place(relx=0.01, rely=0.05)
     complete = True
     root.after(1000, update_image)
 
@@ -317,3 +344,4 @@ def check_corrections():
 def load_image():
     image_label.pack()
     image_label.lower()
+    image_controls.place(relx=0.01, rely=0.05)

@@ -118,6 +118,8 @@ def gen_animation(sol, steps, incorrect):
         current_pix = pix_steps[step]
         current_pal = pal_steps[step]
         yield dithered
+    if incorrect == 0:
+        yield img
 
 
 def range_steps(a, b, steps):
@@ -134,14 +136,14 @@ def gen_values(a, b, c, errors):
         target_pix = 1
         target_pal = 16
     elif errors == 1:
-        target_pix = random.randint(9, 22)
-        target_pal = random.randint(11, 16)
+        target_pix = random.randint(6, 22)
+        target_pal = random.randint(12, 16)
     elif errors == 2:
         target_pix = random.randint(22, 36)
-        target_pal = random.randint(6, 11)
+        target_pal = random.randint(8, 12)
     elif errors == 3:
         target_pix = random.randint(36, 50)
-        target_pal = random.randint(3, 6)
+        target_pal = random.randint(4, 8)
 
 
 if __name__ == '__main__':
