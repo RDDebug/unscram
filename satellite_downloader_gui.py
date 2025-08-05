@@ -1,3 +1,5 @@
+import csv
+import os.path
 import time
 import tkinter as tk
 import random
@@ -11,6 +13,7 @@ from PIL import Image, ImageTk
 
 # --- Global variables for widgets ---
 import image_utils
+from images.ascii_art import *
 
 root = None
 image_controls = None
@@ -18,6 +21,8 @@ label = None
 end_label = None
 time_label = None
 start_time = 0
+cur_time = 0
+delta_time = 0
 game_complete = False
 button = None
 tx_button = None
@@ -28,10 +33,11 @@ binary_label = None
 failure_label = None
 image_label = None
 binary_string = ''
+download_string = ''
 count = 0
 attempt = 1
 wait_list = []
-array_size = 100
+array_size = len(art_0)
 downloading = False
 complete = False
 solved = False
@@ -42,20 +48,29 @@ corrections_truth = [8, 1993, 4]
 correction_labels = [None, None, None]
 correction_inputs = [None, None, None]
 correction_vars = [None, None, None]
+team_name_var = None
+team_name_input = None
 unmatched_ct = 0
 image_steps = 20
 image_gen = None
+scores = []
 
 
 def gui_init(new_root):
-    global root, button, image_label, correction_vars, correction_labels, correction_inputs, validate_button, image_controls
+    global root, button, image_label, correction_vars, correction_labels, correction_inputs, validate_button, \
+        image_controls, team_name_var, team_name_input
 
     root = new_root
-    button = tk.Button(text="Begin Scenario", command=start_session, font=font.Font(size=100))
-    button.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+    button = tk.Button(text="Begin Scenario", command=start_session, font=font.Font(size=100), state=tk.DISABLED)
+    button.place(relx=0.5, rely=0.5, anchor=tk.N)
 
+    team_name_var = tk.StringVar()
+    team_name_var.set("Team Name")
+    team_name_input = tk.Entry(root, textvariable=team_name_var, font=font.Font(size=100), width=15)
+    team_name_input.bind("<KeyRelease>", check_game_start)
+    team_name_input.place(relx=0.5, rely=0.5, anchor=tk.S)
 
-                           # Note: We are not calling root.mainloop() here as per the instructions.
+    # Note: We are not calling root.mainloop() here as per the instructions.
     # The mainloop will be started in the main application script.
     root.attributes('-fullscreen', True)
     # Optional: Set a default window size (can be adjusted later)
@@ -63,20 +78,23 @@ def gui_init(new_root):
 
     image_label = tk.Label(root)
 
-    image_processor.modify_array = np.zeros((1200, 1920, 4), dtype=np.uint8)
+    image_processor.modify_array = np.zeros((1080, 1920, 4), dtype=np.uint8)
     image_processor.modify_array[:, :, 3] = 255  # Alpha channel (fully opaque)
 
     image_controls = tk.Frame(root)
     vcmd = root.register(valid_input)
     correction_vars = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
-    correction_labels = [tk.Label(image_controls, text=s, width=10, justify="center") for s in ["Tropo", "Iono", "Clock"]]
-    correction_inputs = [tk.Entry(image_controls, textvariable=correction_vars[i], validate="key", validatecommand=(vcmd, "%P"), width=10) for i in range(0, 3)]
-    validate_button = tk.Button(image_controls, text="Apply Corrections", command=update_image, font=font.Font(size=10), width=30)
+    correction_labels = [tk.Label(image_controls, text=s, width=10, justify="center") for s in
+                         ["Tropo", "Iono", "Clock"]]
+    correction_inputs = [
+        tk.Entry(image_controls, textvariable=correction_vars[i], validate="key", validatecommand=(vcmd, "%P"),
+                 width=10) for i in range(0, 3)]
+    validate_button = tk.Button(image_controls, text="Apply Corrections", command=update_image, font=font.Font(size=10),
+                                width=30)
     for i in range(0, 3):
         correction_labels[i].grid(row=0, column=i)
         correction_inputs[i].grid(row=1, column=i)
     validate_button.grid(row=3, column=0, columnspan=3)
-
 
     # global end_label, tx_button, label, button, back_button, image_label
     # # --- Initialize GUI elements ---
@@ -94,43 +112,56 @@ def gui_init(new_root):
     # back_button = tk.Button(root, text="Back", command=return_to_start)
 
 
+def check_game_start(event=None):
+    global button
+    text = team_name_input.get()
+    if len(text) > 3 and text not in "Team Name":
+        button.config(state=tk.NORMAL)
+    else:
+        button.config(state=tk.DISABLED)
+
+
 def get_time():
-    global start_time
+    global start_time, delta_time
     end_time = time.time()
-    difference = end_time - start_time
+    delta_time = end_time - start_time
 
     minutes, seconds = divmod(int(difference), 60)
     hours, minutes = divmod(minutes, 60)
 
     color = "black"
-    if difference > 10:
+    if delta_time > 2700:
         color = "red" if int(difference) % 2 else "black"
-        print(difference % 2)
-    if difference > 20:
+        # print(difference % 2)
+    if delta_time > 3600:
         color = "red"
     return "{:02d}:{:02d}:{:02d}".format(hours, minutes, seconds), color
 
 
 def update_time():
-    global time_label
+    global time_label, cur_time
     if not game_complete:
-        t, c = get_time()
-        time_label.config(text=t, fg=c)
+        cur_time, c = get_time()
+        time_label.config(text=cur_time, fg=c)
 
         root.after(1000, update_time)
 
 
 def start_session():
-    global start_time, time_label, end_label, tx_button, label, button, back_button, image_label
+    global start_time, time_label, end_label, tx_button, label, button, back_button, image_label, team_name_input
     start_time = time.time()
 
     time_label = tk.Label(root, text="", font=font.Font(size=25))
     time_label.place(anchor="se", relx=0.98, rely=0.98)
     update_time()
 
-    tx_button = tk.Button(root, text="Transmit Location to Range Control", command=tx_location, font=font.Font(size=40))  # Assign command
+    team_name_input.place_forget()
+
+    tx_button = tk.Button(root, text="Transmit Location to Range Control", command=tx_location,
+                          font=font.Font(size=40))  # Assign command
     tx_button.place(relx=0.5, rely=0.4, anchor="s")
-    button.config(text="Download Satellite database", command=download_database, font=font.Font(size=40))  # Assign command
+    button.config(text="Download Satellite database", command=download_database,
+                  font=font.Font(size=40))  # Assign command
     button.place(relx=0.5, rely=0.6, anchor="n")
     # button.place_forget()
     # button.pack(pady=5)
@@ -162,7 +193,7 @@ def return_to_start():
 
 
 def tx_location():
-    global game_complete, tx_button, button, time_label
+    global game_complete, tx_button, button, time_label, delta_time
     input1 = simpledialog.askstring("Connected to Range Control", "Enter your position")
 
     if input1 == "15TVG46125312":
@@ -171,24 +202,37 @@ def tx_location():
         button.place_forget()
         time_label.config(font=font.Font(size=200))
         time_label.place(anchor="center", relx=0.5, rely=0.5)
-        messagebox.showinfo("Success", "Location successfully logged. Live arms test is being diverted from your location.")
+        add_score()
+        if delta_time < 3600:
+            messagebox.showinfo("Success",
+                                "Location successfully logged.\nLive arms test is being diverted from your location.\n"
+                                "Congratulations!")
+        elif delta_time < 4200:
+            messagebox.showinfo("Near Success",
+                                "Location successfully logged.\nUnfortunately, live arms test as already begun.\n"
+                                "We are sorry...")
+        else:
+            messagebox.showinfo("~Success",
+                                "Location successfully logged.\nThank you for participating.")
     elif input1 == "WE GIVE UP":
         game_complete = True
         tx_button.place_forget()
         button.place_forget()
         time_label.config(font=font.Font(size=200))
         time_label.place(anchor="center", relx=0.5, rely=0.5)
+        add_score()
         # messagebox.showinfo("Success", "Location successfully logged. Live arms test is being diverted from your location.")
     elif input1 is not None:
-        messagebox.showwarning("error", "Invalid Location")
+        messagebox.showwarning("error", "Invalid Location Format.")
     print(input1)
 
 
 def build_wait_list(max_wait):
     global array_size
+    array_size = len(download_string) - download_string.count(" ") - download_string.count("\n")
     waits = [0] * array_size
     for i, v in enumerate(waits):
-        waits[i] = random.choice([100, 300, 500, 1000])
+        waits[i] = random.choice([1, 30, 500, 1000, 8000, 20000])
     ratio = (max_wait * 1000) / sum(waits)
     adj_waits = [int(num * ratio) for num in waits]
     return adj_waits
@@ -196,13 +240,27 @@ def build_wait_list(max_wait):
 
 def update_label():
     global binary_label, count, binary_string, wait_list, array_size
+
+    if not hasattr(update_label, "wait_counter"):
+        update_label.wait_counter = 0
+    update_label.wait_counter += wait_list[count]
+
+    ran_index = 0
+    while binary_string[ran_index] == download_string[ran_index]:
+        ran_index = random.randint(0, len(download_string)-1)
+    binary_string = binary_string[:ran_index] + download_string[ran_index] + binary_string[ran_index + 1:]
+
+    if update_label.wait_counter >= 100:
+        binary_label.config(text=binary_string)
+        update_label.wait_counter = 0
     # Update the label's text with new content
-    binary_string += random.choice('01')
-    binary_label.config(text=binary_string)
+    # binary_string += random.choice('01')
+    # binary_label.config(text=binary_string)
     if downloading:
+        count += 1
         if count < array_size:
             root.after(wait_list[count], update_label)
-            count += 1
+            # print(array_size-count)
         elif attempt < 3:
             show_failure_message()
         else:
@@ -212,14 +270,14 @@ def update_label():
 def first_download():
     global binary_label, root, binary_string, attempt_label, downloading
 
-    binary_string = ''
+    # binary_string = ''
+    binary_string = art_0
     attempt_label = tk.Label(root, text="Attempt #{}".format(attempt))
-    binary_label = tk.Label(root, text=binary_string, width=1000, wraplength=1000, anchor="w", justify="left")  # Wrap text if needed
+    binary_label = tk.Label(root, text=binary_string, width=1000, wraplength=5000, anchor="w", justify="left", font=font.Font(family="Courier", size=10))  # Wrap text if needed
     attempt_label.pack(pady=10)
     binary_label.pack(pady=10)
 
     downloading = True
-
 
     start_download_process()
 
@@ -227,11 +285,17 @@ def first_download():
 # --- Functions for button actions ---
 def start_download_process():
     """Clears initial widgets, shows binary string, schedules failure message."""
-    global binary_string, wait_list, attempt_label
+    global binary_string, wait_list, attempt_label, download_string
 
-    binary_string = ''
+    binary_string = art_0
     attempt_label.config(text="Attempt #{}".format(attempt))
-    wait_list = build_wait_list(1)
+    if attempt == 1:
+        download_string = art_1
+    elif attempt == 2:
+        download_string = art_2
+    elif attempt == 3:
+        download_string = art_3
+    wait_list = build_wait_list(30)
     update_label()
 
 
@@ -240,14 +304,21 @@ def show_failure_message():
     global binary_label, attempt, count, root, binary_string
     attempt += 1
     count = 0
-    binary_label.config(text=binary_string + "\n\nDownload Failed. Reaquiring signal... Standby...")
+    # binary_label.config(text=binary_string + "\n\nDownload Failed. Reaquiring signal... Standby...")
+    error_message = "An error occurred in the download process.\n"
+    if attempt == 2:
+        error_message += "Recalibrating RF..."
+    elif attempt == 3:
+        error_message += "RF calibration verified\nAdjusting frame offset..."
+    messagebox.showerror("Download Error", error_message)
     root.after(2000, start_download_process)
 
 
 def show_success_message():
     """Clears binary label and shows failure message."""
     global binary_label, binary_string
-    binary_label.config(text=binary_string + "\n\nPossible success. Data being prepare. Standby")
+    # .config(text=binary_string + "\n\nPossible success. Data being prepare. Standby")
+    messagebox.showwarning("Download complete!", "Database download successful.\nSignal offsets required for full resolution")
     root.after(1000, prepare_image)
 
 
@@ -295,6 +366,8 @@ def update_image():
         image_gen = image_utils.gen_animation(corrections, image_steps, unmatched_ct)
     try:
         image = next(image_gen)
+        scaler = 0.78
+        image = image.resize((int(1920*scaler), int(1080*scaler)))
         tkimage = ImageTk.PhotoImage(image)
         image_label.config(image=tkimage)
         image_label.image = tkimage
@@ -345,3 +418,31 @@ def load_image():
     image_label.pack()
     image_label.lower()
     image_controls.place(relx=0.01, rely=0.05)
+
+
+def get_scores():
+    if not os.path.exists("scores.csv"):
+        with open("scores.csv", 'w', newline='') as f:
+            pass
+
+    data = []
+    with open("scores.csv", 'r', newline='') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            data.append(tuple(row))
+    return data
+
+
+def save_scores(data):
+    with open("scores.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(data)
+
+
+def add_score():
+    global team_name_var, cur_time
+    scores = get_scores()
+    entry = (team_name_var.get(), cur_time)
+    scores.append(entry)
+    scores.sort(key=lambda x: x[1])
+    save_scores(scores)
