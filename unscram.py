@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 import random
 import satellite_downloader_gui
@@ -25,7 +26,11 @@ def kill_program(event):
 
 
 if __name__ == '__main__':
-    satellite_downloader_gui.gui_init(root)
+    if len(sys.argv) > 1:
+        wait = int(sys.argv[1])
+    else:
+        wait = 90
+    satellite_downloader_gui.gui_init(root, scale=wait)
 
     root.bind("<Control-KeyPress>", kill_program)
 

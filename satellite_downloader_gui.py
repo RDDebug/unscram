@@ -54,13 +54,15 @@ unmatched_ct = 0
 image_steps = 20
 image_gen = None
 scores = []
+wait_time = 1
 
 
-def gui_init(new_root):
+def gui_init(new_root, wait=90):
     global root, button, image_label, correction_vars, correction_labels, correction_inputs, validate_button, \
-        image_controls, team_name_var, team_name_input
+        image_controls, team_name_var, team_name_input, wait_time
 
     root = new_root
+    wait_time = wait
     button = tk.Button(text="Begin Scenario", command=start_session, font=font.Font(size=100), state=tk.DISABLED)
     button.place(relx=0.5, rely=0.5, anchor=tk.N)
 
@@ -211,6 +213,9 @@ def tx_location():
             messagebox.showinfo("Near Success",
                                 "Location successfully logged.\nUnfortunately, live arms test as already begun.\n"
                                 "We are sorry...")
+        elif delta_time > 7200:
+            messagebox.showinfo("Total Loss",
+                                "Location Could not be logged.\nUser has been redistributed to local wildlife")
         else:
             messagebox.showinfo("~Success",
                                 "Location successfully logged.\nThank you for participating.")
@@ -285,7 +290,7 @@ def first_download():
 # --- Functions for button actions ---
 def start_download_process():
     """Clears initial widgets, shows binary string, schedules failure message."""
-    global binary_string, wait_list, attempt_label, download_string
+    global binary_string, wait_list, attempt_label, download_string, wait_time
 
     binary_string = art_0
     attempt_label.config(text="Attempt #{}".format(attempt))
@@ -295,7 +300,7 @@ def start_download_process():
         download_string = art_2
     elif attempt == 3:
         download_string = art_3
-    wait_list = build_wait_list(30)
+    wait_list = build_wait_list(wait_time/30)
     update_label()
 
 
@@ -354,7 +359,7 @@ def prepare_image():
 
 
 def update_image():
-    global corrections, image_gen, image_steps, unmatched_ct, image_label
+    global corrections, image_gen, image_steps, unmatched_ct, image_label, scaler
     for var in correction_vars:
         if var.get() == "":
             var.set("0")
@@ -366,7 +371,7 @@ def update_image():
         image_gen = image_utils.gen_animation(corrections, image_steps, unmatched_ct)
     try:
         image = next(image_gen)
-        scaler = 0.78
+        #scaler = 0.89.657
         image = image.resize((int(1920*scaler), int(1080*scaler)))
         tkimage = ImageTk.PhotoImage(image)
         image_label.config(image=tkimage)
