@@ -359,7 +359,7 @@ def prepare_image():
 
 
 def update_image():
-    global corrections, image_gen, image_steps, unmatched_ct, image_label, scaler
+    global corrections, image_gen, image_steps, unmatched_ct, image_label
     for var in correction_vars:
         if var.get() == "":
             var.set("0")
@@ -371,7 +371,7 @@ def update_image():
         image_gen = image_utils.gen_animation(corrections, image_steps, unmatched_ct)
     try:
         image = next(image_gen)
-        #scaler = 0.89.657
+        scaler = 0.75
         image = image.resize((int(1920*scaler), int(1080*scaler)))
         tkimage = ImageTk.PhotoImage(image)
         image_label.config(image=tkimage)
