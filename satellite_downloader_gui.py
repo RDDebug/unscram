@@ -300,7 +300,7 @@ def start_download_process():
         download_string = art_2
     elif attempt == 3:
         download_string = art_3
-    wait_list = build_wait_list(wait_time/30)
+    wait_list = build_wait_list(wait_time/3)
     update_label()
 
 
