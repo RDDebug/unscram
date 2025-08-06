@@ -126,12 +126,12 @@ def get_time():
     end_time = time.time()
     delta_time = end_time - start_time
 
-    minutes, seconds = divmod(int(difference), 60)
+    minutes, seconds = divmod(int(delta_time), 60)
     hours, minutes = divmod(minutes, 60)
 
     color = "black"
     if delta_time > 2700:
-        color = "red" if int(difference) % 2 else "black"
+        color = "red" if int(delta_time) % 2 else "black"
         # print(difference % 2)
     if delta_time > 3600:
         color = "red"
@@ -319,7 +319,7 @@ def show_success_message():
     global binary_label, binary_string
     # .config(text=binary_string + "\n\nPossible success. Data being prepare. Standby")
     messagebox.showwarning("Download complete!", "Database download successful.\nSignal offsets required for full resolution")
-    root.after(1000, prepare_image)
+    root.after(500, prepare_image)
 
 
 def download_database():
