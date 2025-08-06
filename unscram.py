@@ -30,7 +30,7 @@ if __name__ == '__main__':
         wait = int(sys.argv[1])
     else:
         wait = 90
-    satellite_downloader_gui.gui_init(root, scale=wait)
+    satellite_downloader_gui.gui_init(root, wait=wait)
 
     root.bind("<Control-KeyPress>", kill_program)
 
