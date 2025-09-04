@@ -44,7 +44,7 @@ solved = False
 processing = False
 image_thread = None
 corrections = [16, 1994, 3]
-corrections_truth = [8, 1993, 4]
+corrections_truth = [41, 1993, 4]
 correction_labels = [None, None, None]
 correction_inputs = [None, None, None]
 correction_vars = [None, None, None]
@@ -228,7 +228,7 @@ def tx_location():
         add_score()
         # messagebox.showinfo("Success", "Location successfully logged. Live arms test is being diverted from your location.")
     elif input1 is not None:
-        messagebox.showwarning("error", "Invalid Location Format.")
+        messagebox.showwarning("error", "Invalid Location.\n\nInput may not conform to expected coordinate system\nor was provided in the wrong order.")
     print(input1)
 
 
@@ -266,10 +266,8 @@ def update_label():
         if count < array_size:
             root.after(wait_list[count], update_label)
             # print(array_size-count)
-        elif attempt < 3:
-            show_failure_message()
         else:
-            show_success_message()
+            show_download_message()
 
 
 def first_download():
@@ -304,19 +302,25 @@ def start_download_process():
     update_label()
 
 
-def show_failure_message():
+def show_download_message():
     """Clears binary label and shows failure message."""
     global binary_label, attempt, count, root, binary_string
-    attempt += 1
-    count = 0
-    # binary_label.config(text=binary_string + "\n\nDownload Failed. Reaquiring signal... Standby...")
-    error_message = "An error occurred in the download process.\n"
-    if attempt == 2:
-        error_message += "Recalibrating RF..."
+    if attempt == 1:
+        error_message = "Partial Download Complete (1/3)\nFurther download is required\nto ensure the data hasn't been fowled"
+    elif attempt == 2:
+        error_message = "Partial Download Complete (2/3)\nApplying Third Rule of Acquisition\nDumping weak signals"
     elif attempt == 3:
-        error_message += "RF calibration verified\nAdjusting frame offset..."
-    messagebox.showerror("Download Error", error_message)
-    root.after(2000, start_download_process)
+        error_message = "Download Complete (3/3)\nData collected successfully.\nNon-Standard satellite detected"
+    # binary_label.config(text=binary_string + "\n\nDownload Failed. Reaquiring signal... Standby...")
+
+
+    messagebox.showwarning("Download Status Update", error_message)
+    if attempt != 3:
+        root.after(2000, start_download_process)
+        attempt += 1
+        count = 0
+    else:
+        root.after(500, prepare_image)
 
 
 def show_success_message():
@@ -335,8 +339,6 @@ def download_database():
         button.place_forget()
     if tx_button:
         tx_button.place_forget()
-
-    back_button.place(x=50, y=20)
     if complete:
         load_image()
     else:
@@ -348,7 +350,9 @@ def valid_input(p):
 
 
 def prepare_image():
-    global attempt_label, binary_label, image_label, complete, image_controls
+    global attempt_label, binary_label, image_label, complete, image_controls, back_button
+
+    back_button.place(x=50, y=20)
     attempt_label.pack_forget()
     binary_label.pack_forget()
     image_label.pack()
@@ -422,6 +426,7 @@ def check_corrections():
 def load_image():
     image_label.pack()
     image_label.lower()
+    back_button.place(x=50, y=20)
     image_controls.place(relx=0.01, rely=0.05)
 
 
