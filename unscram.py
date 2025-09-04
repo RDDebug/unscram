@@ -45,11 +45,15 @@ def kill_program(event):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
+    wait = 90
+    scalar = 0.75
+    if len(sys.argv) == 2:
+        print("length: {}".format(len(sys.argv)))
         wait = int(sys.argv[1])
-    else:
-        wait = 90
-    satellite_downloader_gui.gui_init(root, wait=wait)
+    elif len(sys.argv) == 3:
+        wait = int(sys.argv[1])
+        scalar = float(sys.argv[2])
+    satellite_downloader_gui.gui_init(root, wait=wait, scalar_in=scalar)
     prevent_sleep()
     root.bind("<Control-KeyPress>", kill_program)
     # Ensure sleep is allowed when the application exits

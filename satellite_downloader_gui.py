@@ -55,14 +55,16 @@ image_steps = 20
 image_gen = None
 scores = []
 wait_time = 1
+scalar = 1.0
 
 
-def gui_init(new_root, wait=90):
+def gui_init(new_root, wait=90, scalar_in=1.0):
     global root, button, image_label, correction_vars, correction_labels, correction_inputs, validate_button, \
-        image_controls, team_name_var, team_name_input, wait_time
+        image_controls, team_name_var, team_name_input, wait_time, scalar
 
     root = new_root
     wait_time = wait
+    scalar = scalar_in
     button = tk.Button(text="Begin Scenario", command=start_session, font=font.Font(size=100), state=tk.DISABLED)
     button.place(relx=0.5, rely=0.5, anchor=tk.N)
 
@@ -363,7 +365,7 @@ def prepare_image():
 
 
 def update_image():
-    global corrections, image_gen, image_steps, unmatched_ct, image_label
+    global corrections, image_gen, image_steps, unmatched_ct, image_label, scalar
     for var in correction_vars:
         if var.get() == "":
             var.set("0")
@@ -375,8 +377,7 @@ def update_image():
         image_gen = image_utils.gen_animation(corrections, image_steps, unmatched_ct)
     try:
         image = next(image_gen)
-        scaler = 0.75
-        image = image.resize((int(1920*scaler), int(1080*scaler)))
+        image = image.resize((int(1920*scalar), int(1080*scalar)))
         tkimage = ImageTk.PhotoImage(image)
         image_label.config(image=tkimage)
         image_label.image = tkimage
