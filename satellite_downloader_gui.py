@@ -44,10 +44,13 @@ solved = False
 processing = False
 image_thread = None
 corrections = [16, 1994, 3]
-corrections_truth = [41, 1993, 4]
+corrections_truth = [9, 3, 4]
 correction_labels = [None, None, None]
 correction_inputs = [None, None, None]
 correction_vars = [None, None, None]
+password_var = None
+password_input = None
+password_truth = "quadlateration"
 team_name_var = None
 team_name_input = None
 unmatched_ct = 0
@@ -87,11 +90,13 @@ def gui_init(new_root, wait=90, scalar_in=1.0):
 
     image_controls = tk.Frame(root)
     vcmd = root.register(valid_input)
+
+    label_color = ["#80D480", "#81E0FF", "#FDAB81"]
     correction_vars = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
-    correction_labels = [tk.Label(image_controls, text=s, width=10, justify="center") for s in
-                         ["Tropo", "Iono", "Clock"]]
+    correction_labels = [tk.Label(image_controls, text=s, width=8, justify="center") for i, s in
+                         enumerate(["Tropo", "Iono", "Clock"])]
     correction_inputs = [
-        tk.Entry(image_controls, textvariable=correction_vars[i], validate="key", validatecommand=(vcmd, "%P"),
+        tk.Entry(image_controls, textvariable=correction_vars[i], bg=label_color[i], validate="key", validatecommand=(vcmd, "%P"),
                  width=10) for i in range(0, 3)]
     validate_button = tk.Button(image_controls, text="Apply Corrections", command=update_image, font=font.Font(size=10),
                                 width=30)
@@ -119,7 +124,7 @@ def gui_init(new_root, wait=90, scalar_in=1.0):
 def check_game_start(event=None):
     global button
     text = team_name_input.get()
-    if len(text) > 3 and text not in "Team Name":
+    if len(text) > 3 and text.lower() not in "team name":
         button.config(state=tk.NORMAL)
     else:
         button.config(state=tk.DISABLED)
@@ -152,7 +157,7 @@ def update_time():
 
 
 def start_session():
-    global start_time, time_label, end_label, tx_button, label, button, back_button, image_label, team_name_input
+    global start_time, time_label, end_label, tx_button, label, button, back_button, image_label, team_name_input, password_var, password_input
     start_time = time.time()
 
     time_label = tk.Label(root, text="", font=font.Font(size=25))
@@ -161,9 +166,16 @@ def start_session():
 
     team_name_input.place_forget()
 
+    # password_var = tk.StringVar()
+    # password_var.set("Password")
+    # password_input = tk.Entry(root, textvariable=password_var, font=font.Font(size=100), width=15)
+    # password_input.bind("<KeyRelease>", check_game_start)
+    # password_input.place(relx=0.5, rely=0.5, anchor=tk.S)
+
     tx_button = tk.Button(root, text="Transmit Location to Range Control", command=tx_location,
                           font=font.Font(size=40))  # Assign command
     tx_button.place(relx=0.5, rely=0.4, anchor="s")
+
     button.config(text="Download Satellite database", command=download_database,
                   font=font.Font(size=40))  # Assign command
     button.place(relx=0.5, rely=0.6, anchor="n")
