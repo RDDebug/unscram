@@ -92,7 +92,7 @@ def gui_init(new_root, wait=90, scalar_in=1.0):
     image_controls = tk.Frame(root)
     vcmd = root.register(valid_input)
 
-    label_color = ["#80D480", "#81E0FF", "#FDAB81"]
+    label_color = ["#ed2323", "#efff2c", "#a12cff"]
     correction_vars = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
     correction_labels = [tk.Label(image_controls, text=s, width=8, justify="center") for i, s in
                          enumerate(["Tropo", "Iono", "Clock"])]
