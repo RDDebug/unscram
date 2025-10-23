@@ -44,13 +44,14 @@ solved = False
 processing = False
 image_thread = None
 corrections = [16, 1994, 3]
-corrections_truth = [9, 3, 4]
+corrections_truth = [5, 18, 7000]
 correction_labels = [None, None, None]
 correction_inputs = [None, None, None]
 correction_vars = [None, None, None]
 password_var = None
 password_input = None
-password_truth = "quadlateration"
+password_truth1 = "quadrilateration"
+password_truth2 = "trilateration"
 team_name_var = None
 team_name_input = None
 unmatched_ct = 0
@@ -73,7 +74,7 @@ def gui_init(new_root, wait=90, scalar_in=1.0):
 
     team_name_var = tk.StringVar()
     team_name_var.set("Team Name")
-    team_name_input = tk.Entry(root, textvariable=team_name_var, font=font.Font(size=100), width=15)
+    team_name_input = tk.Entry(root, textvariable=team_name_var, font=font.Font(size=100), width=15, justify='center')
     team_name_input.bind("<KeyRelease>", check_game_start)
     team_name_input.place(relx=0.5, rely=0.5, anchor=tk.S)
 
@@ -156,6 +157,17 @@ def update_time():
         root.after(1000, update_time)
 
 
+def check_password(event=None):
+    global button, tx_button
+    text = password_input.get()
+    if text.lower() == password_truth1 or text.lower() == password_truth2:
+        button.config(state=tk.NORMAL)
+        tx_button.config(state=tk.NORMAL)
+    else:
+        button.config(state=tk.DISABLED)
+        tx_button.config(state=tk.DISABLED)
+
+
 def start_session():
     global start_time, time_label, end_label, tx_button, label, button, back_button, image_label, team_name_input, password_var, password_input
     start_time = time.time()
@@ -166,18 +178,18 @@ def start_session():
 
     team_name_input.place_forget()
 
-    # password_var = tk.StringVar()
-    # password_var.set("Password")
-    # password_input = tk.Entry(root, textvariable=password_var, font=font.Font(size=100), width=15)
-    # password_input.bind("<KeyRelease>", check_game_start)
-    # password_input.place(relx=0.5, rely=0.5, anchor=tk.S)
+    password_var = tk.StringVar()
+    password_var.set("Password")
+    password_input = tk.Entry(root, textvariable=password_var, font=font.Font(size=50), width=10, justify='center')
+    password_input.bind("<KeyRelease>", check_password)
+    password_input.place(relx=0.5, rely=0.05, anchor=tk.CENTER)
 
     tx_button = tk.Button(root, text="Transmit Location to Range Control", command=tx_location,
-                          font=font.Font(size=40))  # Assign command
+                          font=font.Font(size=40), state=tk.DISABLED)  # Assign command
     tx_button.place(relx=0.5, rely=0.4, anchor="s")
 
     button.config(text="Download Satellite database", command=download_database,
-                  font=font.Font(size=40))  # Assign command
+                  font=font.Font(size=40), state=tk.DISABLED)  # Assign command
     button.place(relx=0.5, rely=0.6, anchor="n")
     # button.place_forget()
     # button.pack(pady=5)
@@ -189,7 +201,7 @@ def start_session():
 
 
 def return_to_start():
-    global image_label, label, back_button, binary_label, attempt_label, attempt, downloading, image_controls
+    global image_label, label, back_button, binary_label, attempt_label, attempt, downloading, image_controls, password_input
     if image_label:
         image_label.pack_forget()
     if label:
@@ -204,18 +216,20 @@ def return_to_start():
         image_controls.place_forget()
     tx_button.place(relx=0.5, rely=0.4, anchor="s")
     button.place(relx=0.5, rely=0.6, anchor="n")
+    password_input.place(relx=0.5, rely=0.05, anchor=tk.CENTER)
     downloading = False
     attempt = 1
 
 
 def tx_location():
-    global game_complete, tx_button, button, time_label, delta_time
+    global game_complete, tx_button, button, time_label, delta_time, password_input
     input1 = simpledialog.askstring("Connected to Range Control", "Enter your position")
 
     if input1 == "15TVG46125312":
         game_complete = True
         tx_button.place_forget()
         button.place_forget()
+        password_input.place_forget()
         time_label.config(font=font.Font(size=200))
         time_label.place(anchor="center", relx=0.5, rely=0.5)
         add_score()
@@ -237,6 +251,7 @@ def tx_location():
         game_complete = True
         tx_button.place_forget()
         button.place_forget()
+        password_input.place_forget()
         time_label.config(font=font.Font(size=200))
         time_label.place(anchor="center", relx=0.5, rely=0.5)
         add_score()
@@ -346,13 +361,15 @@ def show_success_message():
 
 
 def download_database():
-    global label, button, root, back_button, complete
+    global label, button, root, back_button, complete, password_input
     if label:
         label.place_forget()
     if button:
         button.place_forget()
     if tx_button:
         tx_button.place_forget()
+    if password_input:
+        password_input.place_forget()
     if complete:
         load_image()
     else:
